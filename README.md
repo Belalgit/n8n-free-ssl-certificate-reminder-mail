@@ -46,3 +46,5 @@ N8N_SMTP_HOST=smtp.gmail.com
 N8N_SMTP_PORT=587
 N8N_SMTP_USER=example@gmail.com
 N8N_SMTP_PASS=your_app_password
+
+Copy the script and paste in the n8n workflow
