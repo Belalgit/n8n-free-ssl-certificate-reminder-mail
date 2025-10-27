@@ -1,5 +1,3 @@
-Here’s your **cleaned, well-structured, and production-ready `README.md`**, fully organized and consistent with standard GitHub formatting — including your last edit about importing the script into n8n 👇
-
 ---
 
 ````markdown
@@ -157,22 +155,3 @@ This project is released under the **MIT License**.
 You are free to use, modify, and distribute it for both personal and commercial purposes.
 
 ---
-
-## 👏 Credits
-
-Developed with 💡 by **Mahbub** from the Jatri DevOps & Automation Team.
-A great example of *simple excellence* — turning small, proactive automation into enterprise reliability.
-
----
-
-### 🌐 Connect
-
-📧 **Contact:** [devops@jatritech.com](mailto:devops@jatritech.com)
-🔗 [n8n.io](https://n8n.io) • [JatriTech](https://jatritech.com) • [GitHub](https://github.com/)
-
-```
-
----
-
-Would you like me to include a **GitHub banner image** (e.g., “SSL Monitor — Powered by n8n” with dark background and Jatri logo) to make the repo visually branded?
-```
