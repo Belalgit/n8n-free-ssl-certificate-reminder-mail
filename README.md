@@ -47,5 +47,7 @@ N8N_SMTP_PORT=587
 N8N_SMTP_USER=example@gmail.com
 N8N_SMTP_PASS=your_app_password
 
-### Execution
+
+### 2️⃣ Environment Variables
+```bash
 Copy the script (ssl_certificate_email_alert_script.json) and paste into the n8n workflow
