@@ -1,0 +1,140 @@
+{
+  "name": "SSL Certificate Monitor (40 Days Alert)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 14,
+              "triggerAtMinute": 1
+            }
+          ]
+        }
+      },
+      "id": "61d13e36-693d-4a68-9046-bfda2d519c93",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1248, 384],
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "domains",
+              "value": "[{\"domain\": \"a.example.com\"},{\"domain\": \"b.example.com\"},{\"domain\": \"c.example.com\"}]"
+            }
+          ]
+        }
+      },
+      "id": "01e522bb-4bcd-479d-9095-e771a8e58129",
+      "name": "Domain List",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [-1024, 384],
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "functionCode": "let domains = $json.domains;\nif (typeof domains === 'string') {\n  try { domains = JSON.parse(domains); } catch (e) { throw new Error('Invalid JSON format in domains'); }\n}\nif (!Array.isArray(domains)) throw new Error('Domains is not an array');\nreturn domains.map(d => ({ json: d }));"
+      },
+      "id": "4d10204f-2899-43e7-bea2-8fb7cf95d269",
+      "name": "Extract Domain",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [-576, 384]
+    },
+    {
+      "parameters": {
+        "executeOnce": false,
+        "command": "=sh -c \"echo | openssl s_client -servername {{$json['domain']}} -connect {{$json['domain']}}:443 2>/dev/null | openssl x509 -noout -dates || echo 'notBefore=N/A\\nnotAfter=N/A'\"; echo \"##DOMAIN##={{$json['domain']}}\""
+      },
+      "id": "521cf6ae-cb29-4203-8e8e-8308eddc069f",
+      "name": "Check SSL Dates Finder",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [-352, 384]
+    },
+    {
+      "parameters": {
+        "functionCode": "const results = [];\nfor (const item of items) {\n  const o = item.json.stdout || '';\n  const domainMatch = o.match(/##DOMAIN##=(.*)/);\n  const domain = domainMatch ? domainMatch[1].trim() : (item.json.domain || 'unknown');\n  const issue = o.match(/notBefore=(.*)/)?.[1]?.trim() || 'N/A';\n  const expiry = o.match(/notAfter=(.*)/)?.[1]?.trim() || 'N/A';\n  if (!issue || !expiry || issue === 'N/A' || expiry === 'N/A') {\n    results.push({ json: { domain, issueDate: null, expiryDate: null, ageDays: 0, daysLeft: 0, error: 'SSL not found or invalid' } });\n    continue;\n  }\n  const parseDate = (str) => { const clean = str.replace('GMT', '').trim(); return new Date(Date.parse(clean + ' UTC')); };\n  const issueDate = parseDate(issue);\n  const expiryDate = parseDate(expiry);\n  const now = new Date();\n  const daysLeft = Math.floor((expiryDate - now) / (1000*60*60*24));\n  const ageDays = Math.floor((now - issueDate) / (1000*60*60*24));\n  results.push({ json: { domain, issueDate: issueDate.toISOString(), expiryDate: expiryDate.toISOString(), ageDays, daysLeft } });\n}\nreturn results;"
+      },
+      "id": "098a3e0a-2433-4035-8198-a39e563dffd5",
+      "name": "SSL Age Calculator",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [-144, 384]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ Number($json['daysLeft']) || 0 }}",
+              "operation": "smallerEqual",
+              "value2": 40
+            }
+          ]
+        }
+      },
+      "id": "b9fbbbd0-a8d2-44b9-a5e8-f1ddf14694e1",
+      "name": "Is SSL ≤ 40 Days Left?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [80, 384],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "fromEmail": "example@gmail.com",
+        "toEmail": "example@gmail.com",
+        "ccEmail": "example@gmail.com",
+        "subject": "=SSL Expiry Alert: {{$json['domain']}} — {{$json['daysLeft']}} days left",
+        "text": "=Hello Team,\n\nThe SSL certificate for {{$json['domain']}} will expire soon.\nRemaining validity: {{$json['daysLeft']}} days.\n\nIssued on: {{$json['issueDate']}}\nExpires on: {{$json['expiryDate']}}\n\nPlease review renewal schedule.\n\n--\nRegards,\nn8n SSL Monitor"
+      },
+      "id": "a9ed03d1-e657-4da2-b567-75cba5abfbe2",
+      "name": "Send Email Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [304, 272],
+      "credentials": {
+        "smtp": {
+          "id": "88m7pN2vnxOnD7iB",
+          "name": "example@gmail.com SMTP"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Domain List", "type": "main", "index": 0 }]]
+    },
+    "Domain List": {
+      "main": [[{ "node": "Extract Domain", "type": "main", "index": 0 }]]
+    },
+    "Extract Domain": {
+      "main": [[{ "node": "Check SSL Dates Finder", "type": "main", "index": 0 }]]
+    },
+    "Check SSL Dates Finder": {
+      "main": [[{ "node": "SSL Age Calculator", "type": "main", "index": 0 }]]
+    },
+    "SSL Age Calculator": {
+      "main": [[{ "node": "Is SSL ≤ 40 Days Left?", "type": "main", "index": 0 }]]
+    },
+    "Is SSL ≤ 40 Days Left?": {
+      "main": [[{ "node": "Send Email Alert", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateCredsSetupCompleted": true },
+  "tags": [
+    {
+      "id": "SSL-Monitor",
+      "name": "SSL Certificate"
+    }
+  ]
+}
